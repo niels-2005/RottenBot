@@ -1,4 +1,10 @@
 services:
+  # ========================================
+  # OBSERVABILITY STACK - Base Infrastructure
+  # ========================================
+
+  # Grafana: Web-based visualization platform for metrics, logs, and traces
+  # Provides dashboards and aggregates data from Prometheus, Loki, and Tempo
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -15,27 +21,45 @@ services:
       - observability
     restart: unless-stopped
 
-  alloy:
-    image: grafana/alloy:latest
-    container_name: alloy
+  # Prometheus: Time-series database for metrics
+  # Collects and stores metrics from services and Node-Exporter
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
     ports:
-      - "12345:12345"
-      - "4317:4317"
-      - "4318:4318"
+      - "9090:9090"
     volumes:
-      - ./configs/config.alloy:/etc/alloy/config.alloy
+      - ./configs/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - prometheus-storage:/prometheus
     command:
-      - run
-      - /etc/alloy/config.alloy
-      - --server.http.listen-addr=0.0.0.0:12345
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
     networks:
       - observability
     restart: unless-stopped
-    depends_on:
-      - tempo
-      - loki
-      - prometheus
 
+  # Loki: Log aggregation system
+  # Collects, stores, and indexes logs from all services
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./configs/loki.yaml:/etc/loki/local-config.yaml
+      - loki-storage:/loki
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # Tempo: Distributed tracing backend
+  # Stores and processes traces for request tracing across service boundaries
   tempo:
     image: grafana/tempo:latest
     container_name: tempo
@@ -54,19 +78,8 @@ services:
       - observability
     restart: unless-stopped
 
-  loki:
-    image: grafana/loki:latest
-    container_name: loki
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./configs/loki.yaml:/etc/loki/local-config.yaml
-      - loki-storage:/loki
-    command:
-      - -config.file=/etc/loki/local-config.yaml
-    networks:
-      - observability
-    restart: unless-stopped
+  # Node Exporter: Host metrics collector
+  # Exports hardware and OS metrics from the host system for Prometheus
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter
@@ -84,24 +97,183 @@ services:
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     networks:
       - observability
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
+
+  # ========================================
+  # DATABASE LAYER - Data Persistence
+  # ========================================
+
+  # PostgreSQL: Relational database
+  # Stores user data and ML prediction results
+  postgres:
+    container_name: postgres
+    image: postgres:15
     ports:
-      - "9090:9090"
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - ./configs/prometheus.yaml:/etc/prometheus/prometheus.yml
-      - prometheus-storage:/prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --web.console.libraries=/usr/share/prometheus/console_libraries
-      - --web.console.templates=/usr/share/prometheus/consoles
-      - --web.enable-remote-write-receiver # ← WICHTIG: Enables remote write!
-      - --enable-feature=exemplar-storage
+      - postgres-storage:/var/lib/postgresql/data
     networks:
       - observability
     restart: unless-stopped
+
+  # Redis: In-memory key-value store
+  # Used for JWT token blacklisting and session management
+  redis:
+    container_name: redis
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-storage:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # MinIO: S3-compatible object storage
+  # Stores uploaded images for ML inference
+  minio:
+    container_name: minio
+    image: quay.io/minio/minio
+    ports:
+      - "8997:8997" # API Port
+      - "8998:8998" # Console Port
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-storage:/data
+    command: server /data --address :8997 --console-address :8998
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # MinIO Init Container: Bucket creation
+  # Automatically initializes the 'images' bucket on first start
+  createbucket:
+    image: quay.io/minio/mc:RELEASE.2025-03-12T17-29-24Z
+    depends_on:
+      - minio
+    networks:
+      - observability
+    restart: on-failure
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc alias set dockerminio http://minio:8997 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc mb dockerminio/images; 
+      exit 0;
+      "
+
+  # ========================================
+  # TELEMETRY COLLECTOR
+  # ========================================
+
+  # Alloy: OpenTelemetry Collector (Grafana)
+  # Collects logs, metrics, and traces from application services and forwards them
+  # to Loki (logs), Prometheus (metrics), and Tempo (traces)
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    ports:
+      - "12345:12345" # Admin UI
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+    volumes:
+      - ./configs/config.alloy:/etc/alloy/config.alloy
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+    networks:
+      - observability
+    restart: unless-stopped
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+
+  # ========================================
+  # APPLICATION SERVICES
+  # ========================================
+
+  # Inference Service: ML model server
+  # Performs image classification (fresh/rotten) using the trained ML model
+  # Requires PostgreSQL (storage), Redis (auth), MinIO (images), and Alloy (observability)
+  inference_service:
+    container_name: inference_service
+    image: rotten_bot_inference
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      LOCAL_S3_PROXY_SERVICE_URL: ${LOCAL_S3_PROXY_SERVICE_URL}
+      ALLOY_ENDPOINT: ${ALLOY_ENDPOINT}
+      USE_LOCAL: ${USE_LOCAL}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MODEL_URI: ${MODEL_URI}
+      RUN_ID: ${RUN_ID}
+    networks:
+      - observability
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - alloy
+
+  # Auth Service: Authentication and authorization service
+  # Manages user registration, login, and JWT token management
+  # Requires PostgreSQL (user data), Redis (token blacklist), and Alloy (observability)
+  auth_service:
+    container_name: auth_service
+    image: nielsscholz/rotten_bot_auth:latest
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      ALLOY_ENDPOINT: ${ALLOY_ENDPOINT}
+    networks:
+      - observability
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - alloy
+
+  # Frontend Service: Streamlit web UI
+  # Provides the user interface for login, registration, and image classification
+  # Requires Auth Service (login/signup) and Inference Service (predictions)
+  frontend_service:
+    container_name: frontend_service
+    image: nielsscholz/rotten_bot_frontend:latest
+    ports:
+      - "8501:8501"
+    environment:
+      LOGIN_ENDPOINT: ${LOGIN_ENDPOINT}
+      SIGNUP_ENDPOINT: ${SIGNUP_ENDPOINT}
+      PREDICT_ENDPOINT: ${PREDICT_ENDPOINT}
+    networks:
+      - observability
+    restart: unless-stopped
+    depends_on:
+      - auth_service
+      - inference_service
 
 volumes:
   grafana-storage:
@@ -112,6 +284,12 @@ volumes:
     name: loki-storage
   prometheus-storage:
     name: prometheus-storage
+  postgres-storage:
+    name: postgres-storage
+  redis-storage:
+    name: redis-storage
+  minio-storage:
+    name: minio-storage
 
 networks:
   observability:
