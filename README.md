@@ -210,7 +210,7 @@ Without proper observability, I would have had to manually debug why metrics wer
 
 ---
 
-## ⚡ API Load Testing: Performance Under Real-World Conditions
+## ⚡ API Load Testing: Performance Under "Real-World" Conditions
 
 To validate the system's performance capabilities, I conducted comprehensive load testing using the observability stack to monitor every aspect of the system's behavior.
 
