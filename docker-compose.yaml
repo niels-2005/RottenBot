@@ -205,7 +205,7 @@ services:
   # Requires PostgreSQL (storage), Redis (auth), MinIO (images), and Alloy (observability)
   inference_service:
     container_name: inference_service
-    image: rotten_bot_inference
+    image: nielsscholz/rotten_bot_inference:latest
     ports:
       - "8000:8000"
     environment:
