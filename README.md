@@ -99,7 +99,6 @@ Streamlit-based demo UI for user registration, user login and image classificati
 ### Prerequisites
 
 - Docker & Docker Compose (or just Docker Desktop)
-- Git
 - at least 6GB RAM available
 
 ### Installation & Start
@@ -125,10 +124,7 @@ Streamlit-based demo UI for user registration, user login and image classificati
 | Service | URL | Description |
 |---------|-----|--------------|
 | Frontend | http://localhost:8501 | Streamlit Web UI |
-| Auth Service | http://localhost:8001 | Authentication API |
-| Inference Service | http://localhost:8000 | ML Inference API |
 | Grafana | http://localhost:3000 | Dashboards (Credentials in .env) |
-| Prometheus | http://localhost:9090 | Metrics UI |
 | MinIO Console | http://localhost:8998 | Object Storage UI (Credentials in .env) |
 
 ---
@@ -211,7 +207,6 @@ Without proper observability, I would have had to manually debug why metrics wer
 - ✅ **Immediate Issue Detection** - Problems are visible before they become critical
 - ✅ **User Experience vs. System Health** - Service works for users but metrics reveal underlying issues
 - ✅ **Rapid Debugging** - Error logs pinpoint the exact problem location
-- ✅ **CI/CD Integration** - Quick deployment of fixes via automated pipelines
 
 ---
 
@@ -255,7 +250,7 @@ In the red-highlighted section, we can see the `model_prediction` span containin
 
 After debugging, I discovered this was the very first request to the service - a classic **cold start issue**. The model needed to be loaded into memory, causing the initial prediction to be significantly slower.
 
-**The Solution:** Pre-warm the service by classifying 2-3 images before making it available to users. This ensures the model is loaded and ready for optimal performance.
+**Possible Solution:** Pre-warm the service by classifying 2-3 images before making it available to users. This ensures the model is loaded and ready for optimal performance.
 
 Without this observability stack, identifying and resolving the cold start issue would have been significantly more difficult or may have never been addressed.
 
@@ -265,9 +260,40 @@ The Node Exporter service provides comprehensive host-level monitoring:
 
 ![Node Exporter Host Metrics](readme_images/node_exporter_metrics.png)
 
+## Key Learnings
+
+Throughout the development of RottenBot, I gained valuable insights and skills across various domains:
+
+- **TensorFlow Model Training and Best Practices** - Deepened understanding of efficient model training workflows and optimization techniques
+- **MLflow Experiment Tracking** - Mastered experiment versioning, enabling auditing and reproducibility even years later
+- **FastAPI Backend Development** - Improved skills in building high-performance, scalable REST APIs
+- **Docker & Docker Compose Development** - Enhanced containerization expertise for microservice architectures
+- **MinIO Usage** - Learned to leverage AWS S3-compatible object storage for local development environments
+- **CI/CD Pipelines (GitHub Actions)** - Acquired foundational knowledge of automated deployment and testing workflows
+- **PostgreSQL and Redis Development** - Gained experience with relational databases and in-memory caching systems
+- **Observability Stack** - Mastered OpenTelemetry, Grafana, Alloy, Loki, Tempo, and Prometheus for comprehensive system monitoring
+- **Robust Software Development** - Learned extensive error handling techniques (try-catch blocks) to prevent crashes and ensure reliability
+- **And more!** - Numerous additional skills in ML engineering and DevOps practices
+
+## Future Improvements
+
+Since October 31, 2025, this project is no longer actively developed. However, if I were to continue its evolution, I would focus on the following enhancements:
+
+- **Auth Service Caching** - Implement intelligent caching strategies to reduce authentication latency
+- **Image Prediction Caching** - Add caching layers for frequently requested predictions to improve performance
+- **Data Drift Detection** - Develop mechanisms to detect when user data distributions diverge from training datasets
+- **MLOps Integration** - Automate retraining and deployment pipelines triggered by newly labeled images
+- **Testing Framework (pytest)** - Adopt comprehensive unit and integration testing (Note: I could have AI-generated tests, but chose to learn manual verification for accuracy)
+- **CI/CD Optimization** - Enhance pipelines with pytest integration and Docker image vulnerability scanning
+- **TensorFlow Lite Integration** - Deploy models on edge devices for reduced costs, improved security, and lower latency (no inference service needed)
+- **Alternative Deployment Strategies** (if edge deployment isn't feasible):
+  - API Gateway implementation for better request routing and security, rate limiting, and centralized authentication
+- **Kubernetes / Argo CD** - Container orchestration and GitOps-based deployment automation
+- **And probably much more!**
+
 ---
 
-#  License
+##  License
 
 This project is licensed under the MIT License.
 
