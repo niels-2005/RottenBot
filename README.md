@@ -285,10 +285,13 @@ Since October 31, 2025, this project is no longer actively developed. However, i
 - **MLOps Integration** - Automate retraining and deployment pipelines triggered by newly labeled images
 - **Testing Framework (pytest)** - Adopt comprehensive unit and integration testing (Note: I could have AI-generated tests, but chose to learn manual verification for accuracy)
 - **CI/CD Optimization** - Enhance pipelines with pytest integration and Docker image vulnerability scanning
+- **Expansion of Experiment Tracking Service** - Extend the MLflow-based framework to support broader experiment tracking capabilities:
+  - Add Hyperparameter Tuning integration
+  - Add support for PyTorch, scikit-learn, and LLMs to experiment tracking - these would not be related to RottenBot, rather making it a central experiment tracking service
 - **TensorFlow Lite Integration** - Deploy models on edge devices for reduced costs, improved security, and lower latency (no inference service needed)
 - **Alternative Deployment Strategies** (if edge deployment isn't feasible):
   - API Gateway implementation for better request routing and security, rate limiting, and centralized authentication
-- **Kubernetes / Argo CD** - Container orchestration and GitOps-based deployment automation
+  - Kubernetes / Argo CD implementation for container orchestration and GitOps-based deployment automation
 - **And probably much more!**
 
 ---
@@ -296,6 +299,8 @@ Since October 31, 2025, this project is no longer actively developed. However, i
 ##  License
 
 This project is licensed under the MIT License.
+
+This README.md file was written by AI but strictly followed by human review and edits.
 
 ---
 
