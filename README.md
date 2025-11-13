@@ -116,7 +116,7 @@ Streamlit-based demo UI for user registration, user login and image classificati
 
 3. **Start the system**
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 ### 🌐 Service URLs
