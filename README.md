@@ -269,7 +269,7 @@ Throughout the development of RottenBot, I gained valuable insights and skills a
 - **FastAPI Backend Development** - Improved skills in building high-performance, scalable REST APIs
 - **Docker & Docker Compose Development** - Enhanced containerization expertise for microservice architectures
 - **MinIO Usage** - Learned to leverage AWS S3-compatible object storage for local development environments
-- **CI/CD Pipelines (GitHub Actions)** - Acquired foundational knowledge of automated deployment and testing workflows
+- **CI/CD Pipelines (GitHub Actions)** - Acquired basic knowledge of automated deployment and testing workflows
 - **PostgreSQL and Redis Development** - Gained experience with relational databases and in-memory caching systems
 - **Observability Stack** - Mastered OpenTelemetry, Grafana, Alloy, Loki, Tempo, and Prometheus for comprehensive system monitoring
 - **Robust Software Development** - Learned extensive error handling techniques (try-catch blocks) to prevent crashes and ensure reliability
